@@ -182,7 +182,7 @@ void __saveWindowProps() {
     options["y"] = pos.second;
     options["maximize"] = window::isMaximized();
 
-    filesystem::create_directories(settings::joinAppPath("/.tmp"));
+    filesystem::create_directories(CONVSTR(settings::joinAppPath("/.tmp")));
     fs::FileWriterOptions writerOptions = { settings::joinAppPath(NEU_WIN_CONFIG_FILE), options.dump() };
     fs::writeFile(writerOptions);
 }
@@ -528,6 +528,9 @@ void _close(int exitCode) {
             __saveWindowProps();
         }
         nativeWindow->terminate(exitCode);
+        #if defined(_WIN32)
+        FreeConsole();
+        #endif
         delete nativeWindow;
     }
 }

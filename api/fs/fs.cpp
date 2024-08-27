@@ -12,7 +12,6 @@
 #include <sys/stat.h>
 #include <libgen.h>
 
-#define CONVSTR(S) S.c_str()
 #elif defined(_WIN32)
 #define _WINSOCKAPI_
 #include <windows.h>
@@ -22,11 +21,6 @@
 
 #define NEU_WINDOWS_TICK 10000000
 #define NEU_SEC_TO_UNIX_EPOCH 11644473600LL
-
-// ifstream and ofstream do not support UTF-8 file paths on Windows.
-// However there is a non-standard extension which allows the use of wide strings.
-// So, before we pass the path string to the constructor, we have to convert it to a UTF-16 std::wstring.
-#define CONVSTR(S) helpers::str2wstr(S)
 #endif
 
 #include <efsw/efsw.hpp>
@@ -142,7 +136,7 @@ string getDirectoryName(const string &filename){
 }
 
 string getCurrentDirectory() {
-    string path = filesystem::current_path().string();
+    string path = FS_CONVWSTR(filesystem::current_path());
     #if defined(_WIN32)
     return helpers::normalizePath(path);
     #else
@@ -329,7 +323,7 @@ fs::DirReaderResult readDirectory(const string &path, bool recursive) {
         return dirResult;
     }
 
-    for(auto entry = filesystem::recursive_directory_iterator(path);
+    for(auto entry = filesystem::recursive_directory_iterator(CONVSTR(path));
         entry != filesystem::recursive_directory_iterator();
         ++entry) {
 
@@ -342,9 +336,9 @@ fs::DirReaderResult readDirectory(const string &path, bool recursive) {
         }
 
         auto entryPath = entry->path();
-        string entryStr = entry->path().string();
+        string entryStr = FS_CONVWSTR(entry->path());
 
-        dirResult.entries.push_back({ entryPath.filename().string(),
+        dirResult.entries.push_back({ FS_CONVWSTR(entryPath.filename()),
             helpers::normalizePath(entryStr), type });
 
         if(!recursive) {
@@ -399,7 +393,7 @@ json createDirectory(const json &input) {
         return output;
     }
     string path = input["path"].get<string>();
-    if(filesystem::create_directories(path)) {
+    if(filesystem::create_directories(CONVSTR(path))) {
         output["success"] = true;
         output["message"] = "Directory " + path + " was created";
     }
@@ -419,7 +413,7 @@ json remove(const json& input) {
 
     std::string path = input["path"].get<std::string>();
 
-    if(filesystem::remove_all(path)) {
+    if(filesystem::remove_all(CONVSTR(path))) {
         output["success"] = true;
         output["message"] = path + " was removed";
     }
@@ -638,7 +632,7 @@ json copy(const json &input) {
         copyOptions |= filesystem::copy_options::skip_existing;
     }
 
-    filesystem::copy(source, destination, copyOptions, ec);
+    filesystem::copy(CONVSTR(source), CONVSTR(destination), copyOptions, ec);
 
     if(!ec) {
         output["success"] = true;
@@ -660,7 +654,7 @@ json move(const json &input) {
     string destination = input["destination"].get<string>();
 
     error_code ec;
-    filesystem::rename(source, destination, ec);
+    filesystem::rename(CONVSTR(source), CONVSTR(destination), ec);
 
     if(!ec) {
         output["success"] = true;
@@ -742,6 +736,60 @@ json getWatchers(const json &input) {
             {"path", info.second}
         });
     }
+    output["success"] = true;
+    return output;
+}
+
+json getAbsolutePath(const json &input) {
+    json output;
+    if(!helpers::hasRequiredFields(input, {"path"})) {
+        output["error"] = errors::makeMissingArgErrorPayload();
+        return output;
+    }
+    string path = input["path"].get<string>();
+    string absPath = FS_CONVWSTR(filesystem::absolute(path));
+    output["returnValue"] = helpers::normalizePath(absPath);
+    output["success"] = true;
+    return output;
+}
+
+json getRelativePath(const json &input) {
+    json output;
+    if(!helpers::hasRequiredFields(input, {"path"})) {
+        output["error"] = errors::makeMissingArgErrorPayload();
+        return output;
+    }
+    string path = input["path"].get<string>();
+    string base = filesystem::current_path().string();
+
+    if(helpers::hasField(input, "base")) {
+        base = input["base"].get<string>();
+    }
+    
+    string relPath = FS_CONVWSTR(filesystem::relative(CONVSTR(path), CONVSTR(base)));
+    output["returnValue"] = helpers::normalizePath(relPath);
+    output["success"] = true;
+    return output;
+}
+
+json getPathParts(const json &input) {
+    json output;
+    if(!helpers::hasRequiredFields(input, {"path"})) {
+        output["error"] = errors::makeMissingArgErrorPayload();
+        return output;
+    }
+    auto path = filesystem::path(input["path"].get<string>());
+    json pathParts = {
+        {"rootName", FS_CONVWSTRN(path.root_name())},
+        {"rootDirectory", FS_CONVWSTRN(path.root_directory())},
+        {"rootPath", FS_CONVWSTRN(path.root_path())},
+        {"relativePath", FS_CONVWSTRN(path.relative_path())},
+        {"parentPath", FS_CONVWSTRN(path.parent_path())},
+        {"filename", path.filename()},
+        {"stem", path.stem()},
+        {"extension", path.extension()}
+    };
+    output["returnValue"] = pathParts;
     output["success"] = true;
     return output;
 }

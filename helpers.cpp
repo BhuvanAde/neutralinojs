@@ -127,6 +127,9 @@ string normalizePath(string &path) {
     #if defined(_WIN32)
     replace(path.begin(), path.end(), '\\', '/');
     #endif
+    if(path.size() > 1 && path.back() == '/') {
+        path.pop_back();
+    }
     return path;
 }
 

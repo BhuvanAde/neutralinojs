@@ -158,9 +158,18 @@ void __initExtra() {
 }
 
 #if defined(_WIN32)
+void __attachConsole() {
+    FILE* fp;
+    if(AttachConsole(ATTACH_PARENT_PROCESS)) { 
+        freopen_s(&fp, "CONIN$", "r", stdin);
+        freopen_s(&fp, "CONOUT$", "w", stdout);
+        freopen_s(&fp, "CONOUT$", "w", stderr);
+    }
+}
+
 #define ARG_C __argc
 #define ARG_V __wargv
-#define CONVSTR(S) helpers::wcstr2str(S)
+#define CONVWCSTR(S) helpers::wcstr2str(S)
 int APIENTRY wWinMain(HINSTANCE hInstance,
                       HINSTANCE hPrevInstance,
                       LPTSTR    lpCmdLine,
@@ -168,14 +177,17 @@ int APIENTRY wWinMain(HINSTANCE hInstance,
 #elif defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__)
 #define ARG_C argc
 #define ARG_V argv
-#define CONVSTR(S) S
+#define CONVWCSTR(S) S
 int main(int argc, char ** argv)
 #endif
                                  {
     json args;
     for (int i = 0; i < ARG_C; i++) {
-        args.push_back(CONVSTR(ARG_V[i]));
+        args.push_back(CONVWCSTR(ARG_V[i]));
     }
+    #if defined(_WIN32)
+    __attachConsole();
+    #endif
     __initFramework(args);
     __startServerAsync();
     __configureLogger();

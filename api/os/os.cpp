@@ -22,16 +22,12 @@
 #include <unistd.h>
 extern char **environ;
 
-#define CONVSTR(S) S
-
 #elif defined(_WIN32)
 #define _WINSOCKAPI_
 #include <windows.h>
 #include <tchar.h>
 #include <gdiplus.h>
 #include <shlwapi.h>
-
-#define CONVSTR(S) helpers::str2wstr(S)
 
 #pragma comment(lib, "Shell32.lib")
 #pragma comment(lib, "Gdiplus.lib")
@@ -212,13 +208,21 @@ string getPath(const string &name) {
         path = sago::getSaveGamesFolder1();
     else if(name == "saveGames2")
         path = sago::getSaveGamesFolder2();
+    else if(name == "temp")
+        path = FS_CONVWSTR(filesystem::temp_directory_path());
     return helpers::normalizePath(path);
 }
 
 string getEnv(const string &key) {
+    #if defined(_WIN32)
+    wchar_t value[_MAX_ENV];
+    return GetEnvironmentVariable(CONVSTR(key).c_str(), value, _MAX_ENV) > 0 ? 
+            helpers::wstr2str(value) : "";
+    #else
     char *value;
     value = getenv(key.c_str());
     return value == nullptr ? "" : string(value);
+    #endif
 }
 
 namespace controllers {

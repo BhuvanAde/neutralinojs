@@ -308,6 +308,15 @@ var Neutralino = (function (exports) {
     function getStats(path) {
         return sendMessage('filesystem.getStats', { path });
     }
+    function getAbsolutePath(path) {
+        return sendMessage('filesystem.getAbsolutePath', { path });
+    }
+    function getRelativePath(path, base) {
+        return sendMessage('filesystem.getRelativePath', { path, base });
+    }
+    function getPathParts(path) {
+        return sendMessage('filesystem.getPathParts', { path });
+    }
 
     var filesystem = {
         __proto__: null,
@@ -316,7 +325,10 @@ var Neutralino = (function (exports) {
         copy: copy,
         createDirectory: createDirectory,
         createWatcher: createWatcher,
+        getAbsolutePath: getAbsolutePath,
         getOpenedFileInfo: getOpenedFileInfo,
+        getPathParts: getPathParts,
+        getRelativePath: getRelativePath,
         getStats: getStats,
         getWatchers: getWatchers,
         move: move$1,
@@ -865,7 +877,7 @@ var Neutralino = (function (exports) {
         getMethods: getMethods
     };
 
-    var version = "5.1.1";
+    var version = "5.2.0";
 
     let initialized = false;
     function init(options = {}) {
